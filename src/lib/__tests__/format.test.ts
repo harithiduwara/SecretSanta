@@ -38,3 +38,26 @@ describe('random', () => {
     expect(accessCode()).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
   });
 });
+
+describe('date helpers', () => {
+  const now = new Date(2026, 10, 16, 23, 30); // 16 Nov 2026, late evening local time
+  it('todayIso uses the local date', async () => {
+    const { todayIso } = await import('../format');
+    expect(todayIso(now)).toBe('2026-11-16');
+    expect(todayIso(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+  it('isPastDate treats only days before today as past', async () => {
+    const { isPastDate } = await import('../format');
+    expect(isPastDate('2026-11-15', now)).toBe(true);
+    expect(isPastDate('2026-11-16', now)).toBe(false); // today is allowed
+    expect(isPastDate('2026-12-19', now)).toBe(false);
+    expect(isPastDate('', now)).toBe(false);
+    expect(isPastDate('garbage', now)).toBe(false);
+  });
+  it('nextOccurrence rolls over to next year once the day has passed', async () => {
+    const { nextOccurrence } = await import('../format');
+    expect(nextOccurrence(12, 19, now)).toBe('2026-12-19');
+    expect(nextOccurrence(12, 19, new Date(2026, 11, 20))).toBe('2027-12-19');
+    expect(nextOccurrence(12, 19, new Date(2026, 11, 19))).toBe('2026-12-19');
+  });
+});

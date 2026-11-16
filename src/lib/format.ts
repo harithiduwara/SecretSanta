@@ -28,6 +28,25 @@ export function daysUntil(iso: string, now = new Date()): number | null {
   return Math.round((d.getTime() - today.getTime()) / 86_400_000);
 }
 
+/** Today's date as yyyy-mm-dd in the user's local timezone (what a date input shows). */
+export function todayIso(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** True when `iso` is a valid date strictly before today (local time). Empty or invalid dates are not "past". */
+export function isPastDate(iso: string, now = new Date()): boolean {
+  const d = daysUntil(iso, now);
+  return d !== null && d < 0;
+}
+
+/** Next occurrence of a month/day that is today or later, as yyyy-mm-dd. */
+export function nextOccurrence(month: number, day: number, now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const thisYear = `${now.getFullYear()}-${pad(month)}-${pad(day)}`;
+  return isPastDate(thisYear, now) ? `${now.getFullYear() + 1}-${pad(month)}-${pad(day)}` : thisYear;
+}
+
 export function relativeTime(iso: string, now = Date.now()): string {
   const diff = (new Date(iso).getTime() - now) / 1000;
   const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });

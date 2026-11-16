@@ -15,6 +15,10 @@ We acknowledge reports within 3 business days and aim to ship a fix for high-sev
 - No backend; all data is stored in the organizer's browser `localStorage`.
 - Reveal links contain AES-256-GCM ciphertext in the URL fragment (not sent to servers). Optional per-person access
   codes derive the key with PBKDF2-SHA-256 (210k iterations).
+- Password-protected exchanges are encrypted at rest with AES-256-GCM; the key is derived from the organizer's
+  password with PBKDF2-SHA-256 (600k iterations, random salt), held only in memory while unlocked, and never
+  stored. Passwords can't be recovered. See `docs/adr/0004-password-protected-exchanges.md`.
 - Draws and codes use `crypto.getRandomValues` with rejection sampling (no modulo bias).
 - CSV exports neutralise spreadsheet formula injection; imports are size-limited and validated.
-- Out of scope: attacks requiring access to the organizer's unlocked device or browser profile.
+- Out of scope: attacks requiring access to the organizer's unlocked device or browser profile, or to an exchange
+  while it is unlocked.

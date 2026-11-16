@@ -49,8 +49,24 @@ The token lives in the URL **fragment**, which browsers never transmit to the we
 
 ### Persistence
 
-Zustand `persist` middleware stores `{ events }` under `secretsanta:v1` with a schema `version` for future
-migrations. Backups are validated structurally on import.
+Zustand `persist` middleware stores `{ events, vaults }` under `secretsanta:v1` with a schema `version` for
+future migrations. Backups are validated structurally on import.
+
+### Password-protected exchanges
+
+`events` holds plain exchanges and protected exchanges that are unlocked in this tab. `vaults` holds the encrypted
+copy of every protected exchange; `keys` (memory only, never persisted) holds the derived key while one is
+unlocked. Storage only ever receives `vaults` for protected exchanges, never their plain form.
+
+```
+password ──PBKDF2-SHA-256 (600k, random salt)──► AES-256 key (non-extractable, memory only)
+exchange JSON ──AES-256-GCM (fresh nonce, exchange id as associated data)──► vault ──► localStorage / backup
+```
+
+Any change to an unlocked protected exchange is re-encrypted in the background, in order, per exchange.
+Turning protection on, changing the password and "Start next round" encrypt first and then commit the vault and
+key in one state update, so an exchange is never stored in neither form. See
+[ADR-0004](adr/0004-password-protected-exchanges.md).
 
 ## Decisions
 
@@ -59,3 +75,4 @@ See [ADRs](adr):
 - [ADR-0001](adr/0001-static-spa-on-github-pages.md) Static SPA on GitHub Pages
 - [ADR-0002](adr/0002-encrypted-self-contained-links.md) Encrypted self-contained reveal links
 - [ADR-0003](adr/0003-matching-algorithm.md) Randomized bipartite matching for draws
+- [ADR-0004](adr/0004-password-protected-exchanges.md) Password-protected exchanges, encrypted in the browser

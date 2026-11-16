@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../../App';
 import { useEvents } from '../../store/events';
 import { sealPayload } from '../../lib/crypto';
@@ -90,5 +90,96 @@ describe('reveal page', () => {
   it('shows an error for malformed links', async () => {
     renderAt('/reveal/nonsense');
     expect(await screen.findByText(/malformed/)).toBeInTheDocument();
+  });
+});
+
+describe('link protection', () => {
+  beforeEach(() => useEvents.getState().clearAll());
+
+  it('never exposes old unprotected links after access codes are enabled', async () => {
+    const user = userEvent.setup();
+    const { act } = await import('@testing-library/react');
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'Secure' });
+    store.addParticipants(
+      id,
+      ['A', 'B', 'C'].map((name) => ({ name, email: '' })),
+    );
+    store.runDraw(id);
+    renderAt(`/events/${id}?tab=draw`);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await user.click(await screen.findByRole('button', { name: /show pairings/i }));
+    await waitFor(() =>
+      expect(screen.getAllByRole('link', { name: /preview/i })[0]).toHaveAttribute(
+        'href',
+        expect.stringContaining('#/reveal/k.'),
+      ),
+    );
+    act(() => useEvents.getState().setRules(id, { pinProtectedLinks: true }));
+    // Immediately after the change no stale (unprotected) link may be reachable.
+    for (const a of screen.queryAllByRole('link', { name: /preview/i }))
+      expect(a.getAttribute('href')).not.toContain('#/reveal/k.');
+    await waitFor(
+      () =>
+        expect(screen.getAllByRole('link', { name: /preview/i })[0]).toHaveAttribute(
+          'href',
+          expect.stringContaining('#/reveal/p.'),
+        ),
+      { timeout: 5000 },
+    );
+    expect(screen.getByRole('button', { name: /export links/i })).toBeEnabled();
+    confirm.mockRestore();
+  });
+});
+
+describe('password protection flow', () => {
+  beforeEach(() => {
+    useEvents.getState().clearAll();
+    localStorage.clear();
+  });
+
+  it('protects, locks, hides details on the dashboard, and unlocks with ID + password', async () => {
+    const user = userEvent.setup();
+    const id = useEvents.getState().createEvent({ name: 'Leadership exchange' });
+    renderAt(`/events/${id}`);
+
+    await user.click(await screen.findByRole('button', { name: /protect with a password/i }));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Password'), 'sleigh-bells-ring');
+    await user.type(within(dialog).getByLabelText('Confirm password'), 'sleigh-bells-ring');
+    await user.click(within(dialog).getByRole('button', { name: /turn on protection/i }));
+    expect(await within(dialog).findByText(/confirm you have stored/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: /turn on protection/i }));
+    expect(await screen.findByText('Password protected', {}, { timeout: 5000 })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Lock now' }));
+    // Dashboard: the locked exchange shows only its ID.
+    expect(await screen.findByText('Locked exchange')).toBeInTheDocument();
+    expect(screen.getByText(id)).toBeInTheDocument();
+    expect(screen.queryByText('Leadership exchange')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Locked exchange'));
+    expect(await screen.findByText('This exchange is locked')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Password'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    expect(
+      await screen.findByText('That password is not correct.', {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Password'));
+    await user.type(screen.getByLabelText('Password'), 'sleigh-bells-ring');
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Leadership exchange' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  }, 20000);
+
+  it('keeps an exchange unlocked when another tab saves', async () => {
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'Tab test' });
+    await store.protectEvent(id, 'tab-password-1');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'secretsanta:v1' }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(useEvents.getState().events.find((e) => e.id === id)?.name).toBe('Tab test');
   });
 });

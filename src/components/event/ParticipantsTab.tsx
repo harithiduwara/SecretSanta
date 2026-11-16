@@ -332,12 +332,19 @@ export function ParticipantsTab({ event }: { event: SantaEvent }) {
               wishlist: editing.wishlist ?? '',
             }}
             onSubmit={(v) => {
-              updateParticipant(event.id, editing.id, {
+              const deptChanged =
+                v.department.trim().toLowerCase() !== (editing.department ?? '').trim().toLowerCase();
+              if (deptChanged && event.rules.avoidSameDepartment && !confirmIfDrawn()) return false;
+              const saved = updateParticipant(event.id, editing.id, {
                 name: v.name.trim(),
                 email: v.email.trim(),
                 department: v.department.trim() || undefined,
                 wishlist: v.wishlist.trim() || undefined,
               });
+              if (!saved) {
+                toast('Another participant already uses that email.', 'error');
+                return false;
+              }
               setEditing(null);
               toast('Participant updated');
             }}

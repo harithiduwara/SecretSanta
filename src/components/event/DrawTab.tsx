@@ -26,13 +26,16 @@ import { download } from '../../lib/download';
 /** Generates (and caches per draw) the encrypted reveal link for every giver. */
 function useRevealLinks(event: SantaEvent) {
   const [links, setLinks] = useState<Record<ID, string>>({});
+  const [progress, setProgress] = useState(0);
   const { assignments, participants, rules, drawnAt } = event;
   useEffect(() => {
     let cancelled = false;
-    if (!assignments.length) {
-      setLinks({});
-      return;
-    }
+    // Drop stale links immediately: e.g. after enabling access codes, old unprotected links must not be
+    // copyable or exportable while the new ones are being encrypted.
+    setLinks({});
+    setProgress(0);
+    if (!assignments.length) return;
+    let done = 0;
     const byId = new Map(participants.map((p) => [p.id, p]));
     Promise.all(
       assignments.map(async (a) => {
@@ -53,9 +56,14 @@ function useRevealLinks(event: SantaEvent) {
           },
           rules.pinProtectedLinks ? g.accessCode : undefined,
         );
+        if (!cancelled && ++done % 25 === 0) setProgress(done);
         return [a.giverId, revealUrl(token)] as const;
       }),
-    ).then((entries) => !cancelled && setLinks(Object.fromEntries(entries)));
+    ).then((entries) => {
+      if (cancelled) return;
+      setLinks(Object.fromEntries(entries));
+      setProgress(entries.length);
+    });
     return () => {
       cancelled = true;
     };
@@ -71,18 +79,19 @@ function useRevealLinks(event: SantaEvent) {
     event.description,
     participants,
   ]);
-  return links;
+  return { links, progress };
 }
 
 export function DrawTab({ event }: { event: SantaEvent }) {
   const { runDraw, resetDraw, setNotified } = useEvents();
   const [drawing, setDrawing] = useState(false);
   const [showPairs, setShowPairs] = useState(false);
-  const links = useRevealLinks(event);
+  const { links, progress } = useRevealLinks(event);
   const issues = diagnose(event);
   const byId = new Map(event.participants.map((p) => [p.id, p]));
   const locked = event.status === 'archived';
   const sent = Object.keys(event.notified).length;
+  const linksReady = event.assignments.every((a) => links[a.giverId]);
 
   const doDraw = async () => {
     setDrawing(true);
@@ -208,8 +217,14 @@ export function DrawTab({ event }: { event: SantaEvent }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportCsv}>
-            Export links
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download size={14} />}
+            onClick={exportCsv}
+            disabled={!linksReady}
+          >
+            {linksReady ? 'Export links' : `Encrypting ${progress}/${event.assignments.length}…`}
           </Button>
           <Button
             variant="secondary"

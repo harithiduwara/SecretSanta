@@ -1,19 +1,22 @@
 import { Database, Download, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { useRef } from 'react';
-import { parseBackup, useEvents } from '../store/events';
+import { exportSnapshot, parseBackup, useEvents } from '../store/events';
 import { download } from '../lib/download';
 import { toast } from '../store/ui';
 import { Button, Card } from '../components/ui';
 
 export default function Settings() {
-  const { events, importEvents, clearAll } = useEvents();
+  const { events, vaults, keys, importEvents, clearAll } = useEvents();
+  const lockedCount = Object.keys(vaults).filter((id) => !keys[id]).length;
+  const total = events.length + lockedCount;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onImport = async (f?: File) => {
     if (!f) return;
     try {
       if (f.size > 10_000_000) throw new Error('File is too large (max 10 MB).');
-      const added = importEvents(parseBackup(await f.text()));
+      const backup = parseBackup(await f.text());
+      const added = importEvents(backup.events, backup.vaults);
       toast(
         added ? `Imported ${added} exchange${added === 1 ? '' : 's'}` : 'Nothing new to import',
         added ? 'success' : 'info',
@@ -38,24 +41,27 @@ export default function Settings() {
           <div className="flex-1">
             <h2 className="font-semibold">Backup & restore</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {events.length} exchange{events.length === 1 ? '' : 's'} stored in this browser. Export a JSON
-              backup to move to another device or share administration with a co-organizer.
+              {total} exchange{total === 1 ? '' : 's'} stored in this browser
+              {lockedCount ? ` (${lockedCount} locked)` : ''}. Export a JSON backup to move to another device
+              or share administration with a co-organizer. Password-protected exchanges stay encrypted in the
+              backup and need their password to open.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 icon={<Download size={16} />}
-                disabled={!events.length}
-                onClick={() =>
+                disabled={!total}
+                onClick={async () => {
+                  const snapshot = await exportSnapshot();
                   download(
                     `secretsanta-backup-${new Date().toISOString().slice(0, 10)}.json`,
                     JSON.stringify(
-                      { app: 'secretsanta', version: 1, exportedAt: new Date().toISOString(), events },
+                      { app: 'secretsanta', version: 1, exportedAt: new Date().toISOString(), ...snapshot },
                       null,
                       2,
                     ),
-                  )
-                }
+                  );
+                }}
               >
                 Export all
               </Button>
@@ -93,6 +99,10 @@ export default function Settings() {
                 With access codes enabled, the key is derived with PBKDF2-SHA-256 (210k iterations) from each
                 person's code.
               </li>
+              <li>
+                Password-protected exchanges are stored encrypted (AES-256-GCM, key from PBKDF2-SHA-256 with
+                600k iterations). The password is never stored, and a forgotten password can't be recovered.
+              </li>
               <li>Draws use the Web Crypto CSPRNG and are independently re-validated before saving.</li>
             </ul>
           </div>
@@ -110,7 +120,7 @@ export default function Settings() {
             <Button
               variant="danger"
               className="mt-4"
-              disabled={!events.length}
+              disabled={!total}
               onClick={() => {
                 if (window.prompt('Type DELETE to erase all data') === 'DELETE') {
                   clearAll();
