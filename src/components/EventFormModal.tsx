@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import type { SantaEvent } from '../lib/types';
 import { CURRENCIES, isPastDate, todayIso } from '../lib/format';
+import { cleanCountryCode } from '../lib/phone';
 import { Button, Field, Input, Modal, Select, Textarea } from './ui';
 
-export type EventFormValues = Pick<SantaEvent, 'name' | 'description' | 'date' | 'budget' | 'currency'>;
+export type EventFormValues = Pick<
+  SantaEvent,
+  'name' | 'description' | 'date' | 'budget' | 'currency' | 'phoneCountryCode'
+>;
 
 export function EventFormModal({
   open,
@@ -26,8 +30,9 @@ export function EventFormModal({
     date: initial?.date ?? '',
     budget: initial?.budget ?? 25,
     currency: initial?.currency ?? 'USD',
+    phoneCountryCode: initial?.phoneCountryCode ?? '',
   });
-  const [errors, setErrors] = useState<{ name?: string; date?: string; budget?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; date?: string; budget?: string; cc?: string }>({});
   const today = todayIso();
   // An exchange that already took place keeps its date when other details are edited,
   // but a new or changed date can't be in the past.
@@ -40,9 +45,16 @@ export function EventFormModal({
     if (!v.name.trim()) next.name = 'Please give your exchange a name.';
     if (datePassed && !keepsExistingPastDate) next.date = 'Choose today or a later date.';
     if (!(v.budget >= 0)) next.budget = 'Budget must be zero or more.';
+    const cc = cleanCountryCode(v.phoneCountryCode);
+    if (v.phoneCountryCode?.trim() && !cc) next.cc = 'Enter a country code like +94.';
     setErrors(next);
     if (Object.keys(next).length) return;
-    onSubmit({ ...v, name: v.name.trim(), description: v.description.trim() });
+    onSubmit({
+      ...v,
+      name: v.name.trim(),
+      description: v.description.trim(),
+      phoneCountryCode: cc || undefined,
+    });
   };
 
   return (
@@ -115,6 +127,29 @@ export function EventFormModal({
             )}
           </Field>
         </div>
+        <Field
+          label="Phone country code"
+          error={errors.cc}
+          hint="Optional. Used for WhatsApp numbers entered without a country code, e.g. 077 123 4567."
+        >
+          {(id) => (
+            <Input
+              id={id}
+              inputMode="tel"
+              className="sm:w-40"
+              placeholder="+94"
+              maxLength={6}
+              value={
+                v.phoneCountryCode
+                  ? v.phoneCountryCode.startsWith('+')
+                    ? v.phoneCountryCode
+                    : `+${v.phoneCountryCode}`
+                  : ''
+              }
+              onChange={(e) => setV({ ...v, phoneCountryCode: e.target.value.replace(/[^\d+]/g, '') })}
+            />
+          )}
+        </Field>
         <Field
           label="Message to participants"
           hint="Shown on every reveal page — location, theme, dress code…"

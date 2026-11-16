@@ -1,5 +1,5 @@
-import { KeyRound, Lock, LockOpen, ShieldCheck, Trash2 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { KeyRound, Lock, LockOpen, ShieldCheck, Trash2, X } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import type { ID } from '../../lib/types';
 import { MIN_PASSWORD_LENGTH, passwordProblem, VaultError } from '../../lib/vault';
@@ -312,6 +312,16 @@ export function UnlockScreen({ id }: { id: ID }) {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (confirmDelete) setConfirmDelete(false);
+      else navigate('/');
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [confirmDelete, navigate]);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!pw) return setError('Enter the password.');
@@ -329,7 +339,16 @@ export function UnlockScreen({ id }: { id: ID }) {
 
   return (
     <div className="mx-auto max-w-md py-6">
-      <Card className="p-8">
+      <Card className="relative p-8">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          aria-label="Close and go back to all exchanges"
+          title="Back to all exchanges (Esc)"
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        >
+          <X size={18} />
+        </button>
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-brand-600 dark:bg-brand-900/40 dark:text-brand-300">
           <Lock size={24} />
         </div>

@@ -17,11 +17,21 @@ import type { ID, SantaEvent } from '../../lib/types';
 import { diagnose } from '../../lib/draw';
 import { revealUrl, sealPayload } from '../../lib/crypto';
 import { toCsv } from '../../lib/csv';
-import { formatDate, formatMoney } from '../../lib/format';
+import { inviteMessage, inviteSubject } from '../../lib/messages';
+import { whatsappLink } from '../../lib/phone';
 import { useEvents } from '../../store/events';
 import { toast } from '../../store/ui';
 import { Avatar, Badge, Button, Card } from '../ui';
 import { download } from '../../lib/download';
+
+/** WhatsApp glyph (lucide has no brand icons). */
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="currentColor">
+      <path d="M12 2a10 10 0 0 0-8.66 15l-1.3 4.75 4.87-1.28A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-2.89.76.77-2.82-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.14c-.25-.12-1.46-.72-1.69-.8-.22-.08-.39-.12-.55.13-.16.24-.63.8-.78.96-.14.17-.29.19-.53.06a6.7 6.7 0 0 1-3.32-2.9c-.25-.43.25-.4.72-1.33.08-.16.04-.3-.02-.43l-.75-1.82c-.2-.48-.4-.41-.55-.42h-.47a.9.9 0 0 0-.65.3 2.74 2.74 0 0 0-.86 2.04 4.76 4.76 0 0 0 1 2.53 10.9 10.9 0 0 0 4.18 3.7c1.56.67 2.17.73 2.95.61.47-.07 1.46-.6 1.66-1.17.21-.58.21-1.07.15-1.17-.06-.1-.22-.17-.47-.29Z" />
+    </svg>
+  );
+}
 
 /** Generates (and caches per draw) the encrypted reveal link for every giver. */
 function useRevealLinks(event: SantaEvent) {
@@ -118,22 +128,14 @@ export function DrawTab({ event }: { event: SantaEvent }) {
     const p = byId.get(pid);
     const link = links[pid];
     if (!p || !link) return '#';
-    const subject = `Your Secret Santa match for ${event.name} 🎁`;
-    const body = [
-      `Hi ${p.name.split(' ')[0]},`,
-      '',
-      `The names for ${event.name} have been drawn! Open your private link to find out who you're gifting:`,
-      '',
-      link,
-      '',
-      event.rules.pinProtectedLinks ? 'You will receive your personal access code separately.' : '',
-      `Budget: ${formatMoney(event.budget, event.currency)}${event.date ? ` · Exchange: ${formatDate(event.date)}` : ''}`,
-      '',
-      'Please keep it a secret! 🤫',
-    ]
-      .filter((l, i, a) => l !== '' || a[i - 1] !== '')
-      .join('\n');
-    return `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(inviteSubject(event))}&body=${encodeURIComponent(inviteMessage(event, p, link))}`;
+  };
+
+  const whatsapp = (pid: ID) => {
+    const p = byId.get(pid);
+    const link = links[pid];
+    if (!p?.phone || !link) return '#';
+    return whatsappLink(p.phone, inviteMessage(event, p, link));
   };
 
   const exportCsv = () => {
@@ -141,6 +143,7 @@ export function DrawTab({ event }: { event: SantaEvent }) {
       [
         'Name',
         'Email',
+        'Phone',
         'Department',
         ...(event.rules.pinProtectedLinks ? ['Access code'] : []),
         'Reveal link',
@@ -150,6 +153,7 @@ export function DrawTab({ event }: { event: SantaEvent }) {
         return [
           p.name,
           p.email,
+          p.phone ?? '',
           p.department ?? '',
           ...(event.rules.pinProtectedLinks ? [p.accessCode] : []),
           links[a.giverId] ?? '',
@@ -292,7 +296,7 @@ export function DrawTab({ event }: { event: SantaEvent }) {
                   <div className="min-w-0">
                     <div className="truncate font-medium">{g.name}</div>
                     <div className="flex items-center gap-2 truncate text-xs text-slate-500">
-                      {g.email || 'No email'}
+                      {g.email || g.phone || 'No email or phone'}
                       {event.rules.pinProtectedLinks && (
                         <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           <KeyRound size={11} /> {g.accessCode}
@@ -329,6 +333,25 @@ export function DrawTab({ event }: { event: SantaEvent }) {
                       className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
                     >
                       <Mail size={13} /> Email
+                    </a>
+                  )}
+                  {g.phone && (
+                    <a
+                      href={whatsapp(g.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-disabled={!links[g.id]}
+                      aria-label={`Send ${g.name} their link on WhatsApp`}
+                      onClick={(e) => {
+                        if (!links[g.id]) return e.preventDefault();
+                        setNotified(event.id, g.id, true);
+                      }}
+                      className={clsx(
+                        'inline-flex h-8 items-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-xs font-semibold text-[#073b1c] hover:brightness-95',
+                        !links[g.id] && 'pointer-events-none opacity-50',
+                      )}
+                    >
+                      <WhatsAppIcon /> WhatsApp
                     </a>
                   )}
                   {showPairs && links[g.id] && (

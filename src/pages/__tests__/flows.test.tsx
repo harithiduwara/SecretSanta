@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -181,5 +181,74 @@ describe('password protection flow', () => {
     window.dispatchEvent(new StorageEvent('storage', { key: 'secretsanta:v1' }));
     await new Promise((r) => setTimeout(r, 50));
     expect(useEvents.getState().events.find((e) => e.id === id)?.name).toBe('Tab test');
+  });
+});
+
+describe('WhatsApp delivery', () => {
+  beforeEach(() => useEvents.getState().clearAll());
+
+  it('adds a local number using the exchange country code and offers a WhatsApp link', async () => {
+    const user = userEvent.setup();
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'WA test', phoneCountryCode: '94' });
+    store.addParticipants(id, [
+      { name: 'Bob', email: '' },
+      { name: 'Cara', email: '' },
+    ]);
+    renderAt(`/events/${id}?tab=participants`);
+    await user.type(await screen.findByLabelText('Name'), 'Ava Perera');
+    await user.type(screen.getByLabelText('WhatsApp number'), '077 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    const ava = useEvents.getState().events[0]!.participants.find((p) => p.name === 'Ava Perera')!;
+    expect(ava.phone).toBe('+94771234567');
+    expect(screen.getByText('+94771234567')).toBeInTheDocument();
+
+    useEvents.getState().runDraw(id);
+    await user.click(screen.getByRole('tab', { name: /draw & distribute/i }));
+    const wa = await screen.findByRole('link', { name: /send ava perera their link on whatsapp/i });
+    await waitFor(() =>
+      expect(wa).toHaveAttribute('href', expect.stringContaining('https://wa.me/94771234567?text=')),
+    );
+    const text = new URL(wa.getAttribute('href')!).searchParams.get('text')!;
+    expect(text).toContain('Hi Ava,');
+    expect(text).toMatch(/#\/reveal\/k\./);
+    // Only people with a number get a WhatsApp button.
+    expect(screen.getAllByRole('link', { name: /on whatsapp/i })).toHaveLength(1);
+    await user.click(wa);
+    expect(useEvents.getState().events[0]!.notified[ava.id]).toBeTruthy();
+  });
+
+  it('shows a clear error for a local number when no country code is set', async () => {
+    const user = userEvent.setup();
+    const id = useEvents.getState().createEvent({ name: 'No CC' });
+    renderAt(`/events/${id}?tab=participants`);
+    await user.type(await screen.findByLabelText('Name'), 'Ava');
+    await user.type(screen.getByLabelText('WhatsApp number'), '077 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByText(/Add the country code/)).toBeInTheDocument();
+    expect(useEvents.getState().events[0]!.participants).toHaveLength(0);
+  });
+});
+
+describe('locked exchange screen', () => {
+  beforeEach(() => useEvents.getState().clearAll());
+
+  it('has a close button and Esc that return to the dashboard', async () => {
+    const user = userEvent.setup();
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'Closable' });
+    await store.protectEvent(id, 'close-me-please');
+    await store.lockEvent(id);
+
+    renderAt(`/events/${id}`);
+    expect(await screen.findByText('This exchange is locked')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /close and go back/i }));
+    expect(await screen.findByText('Gift exchanges')).toBeInTheDocument();
+    cleanup();
+
+    renderAt(`/events/${id}`);
+    expect(await screen.findByText('This exchange is locked')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(await screen.findByText('Gift exchanges')).toBeInTheDocument();
   });
 });

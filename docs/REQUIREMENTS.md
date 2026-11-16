@@ -15,24 +15,25 @@ without a server, while keeping every participant's assignment private.
 
 ## 3. Functional requirements
 
-| ID    | Requirement                                                                                                                                                         | Priority |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| FR-01 | Create, edit, archive, restore and delete exchanges with name, date, budget, currency and message.                                                                  | Must     |
-| FR-02 | Add, edit and remove participants (name, optional email, department, wishlist).                                                                                     | Must     |
-| FR-03 | Bulk-import participants from CSV/TSV with header detection, validation, preview and de-duplication.                                                                | Must     |
-| FR-04 | Define one-way or mutual exclusions between participants.                                                                                                           | Must     |
-| FR-05 | Optional rules: avoid same department, avoid previous pairings, avoid reciprocal pairs.                                                                             | Must     |
-| FR-06 | Draw modes: random matching and single gift-chain (one cycle).                                                                                                      | Should   |
-| FR-07 | Draw must never assign a person to themselves and must satisfy all active rules, or explain why it can't.                                                           | Must     |
-| FR-08 | Changing roster or rules after a draw invalidates it (with confirmation).                                                                                           | Must     |
-| FR-09 | Generate a private reveal link per participant; optional per-person access code.                                                                                    | Must     |
-| FR-10 | Copy link, open pre-filled email, export distribution CSV, and track delivery status.                                                                               | Must     |
-| FR-11 | Organizer can hide pairings (blind mode, default) and reveal only after confirmation.                                                                               | Should   |
-| FR-12 | "Start next round" clones an exchange and records the previous draw in history.                                                                                     | Should   |
-| FR-13 | Audit log of all changes per exchange (pairings never logged).                                                                                                      | Should   |
-| FR-14 | JSON backup export/import of all data; erase-all with typed confirmation.                                                                                           | Must     |
-| FR-15 | Dashboard with KPIs, status filters and search.                                                                                                                     | Should   |
-| FR-16 | Optional per-exchange password: the exchange is stored encrypted and opens only with its ID and password; it locks on reload, on demand, and after 15 minutes idle. | Should   |
+| ID    | Requirement                                                                                                                                                                                               | Priority |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| FR-01 | Create, edit, archive, restore and delete exchanges with name, date, budget, currency and message.                                                                                                        | Must     |
+| FR-02 | Add, edit and remove participants (name, optional email, department, wishlist).                                                                                                                           | Must     |
+| FR-03 | Bulk-import participants from CSV/TSV with header detection, validation, preview and de-duplication.                                                                                                      | Must     |
+| FR-04 | Define one-way or mutual exclusions between participants.                                                                                                                                                 | Must     |
+| FR-05 | Optional rules: avoid same department, avoid previous pairings, avoid reciprocal pairs.                                                                                                                   | Must     |
+| FR-06 | Draw modes: random matching and single gift-chain (one cycle).                                                                                                                                            | Should   |
+| FR-07 | Draw must never assign a person to themselves and must satisfy all active rules, or explain why it can't.                                                                                                 | Must     |
+| FR-08 | Changing roster or rules after a draw invalidates it (with confirmation).                                                                                                                                 | Must     |
+| FR-09 | Generate a private reveal link per participant; optional per-person access code.                                                                                                                          | Must     |
+| FR-10 | Copy link, open pre-filled email, export distribution CSV, and track delivery status.                                                                                                                     | Must     |
+| FR-11 | Organizer can hide pairings (blind mode, default) and reveal only after confirmation.                                                                                                                     | Should   |
+| FR-12 | "Start next round" clones an exchange and records the previous draw in history.                                                                                                                           | Should   |
+| FR-13 | Audit log of all changes per exchange (pairings never logged).                                                                                                                                            | Should   |
+| FR-14 | JSON backup export/import of all data; erase-all with typed confirmation.                                                                                                                                 | Must     |
+| FR-15 | Dashboard with KPIs, status filters and search.                                                                                                                                                           | Should   |
+| FR-16 | Optional per-exchange password: the exchange is stored encrypted and opens only with its ID and password; it locks on reload, on demand, and after 15 minutes idle.                                       | Should   |
+| FR-17 | Optional WhatsApp number per participant (international or local with the exchange's country code, also via CSV); one-click WhatsApp message with the reveal link (click-to-chat, sent by the organizer). | Should   |
 
 ## 4. Non-functional requirements
 

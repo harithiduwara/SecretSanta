@@ -4,6 +4,7 @@ import type { Assignment, DrawRules, Exclusion, ID, Participant, SantaEvent } fr
 import { accessCode, uid } from '../lib/random';
 import { draw, validateAssignments, type DrawResult } from '../lib/draw';
 import type { ImportedPerson } from '../lib/csv';
+import { cleanCountryCode } from '../lib/phone';
 import {
   deriveVaultKey,
   isVault,
@@ -77,7 +78,9 @@ interface State {
   createEvent: (partial?: Partial<SantaEvent>) => ID;
   updateEvent: (
     id: ID,
-    patch: Partial<Pick<SantaEvent, 'name' | 'description' | 'date' | 'budget' | 'currency'>>,
+    patch: Partial<
+      Pick<SantaEvent, 'name' | 'description' | 'date' | 'budget' | 'currency' | 'phoneCountryCode'>
+    >,
   ) => void;
   deleteEvent: (id: ID) => void;
   archiveEvent: (id: ID, archived: boolean) => void;
@@ -271,6 +274,7 @@ export const useEvents = create<State>()(
             description: src.description,
             budget: src.budget,
             currency: src.currency,
+            phoneCountryCode: src.phoneCountryCode,
             rules: { ...src.rules },
             participants: src.participants.map((p) => ({ ...p, accessCode: accessCode() })),
             exclusions: src.exclusions.map((x) => ({ ...x })),
@@ -302,12 +306,17 @@ export const useEvents = create<State>()(
           if (!e) return { added: 0, skipped: people.length };
           const emails = new Set(e.participants.map((p) => p.email.toLowerCase()).filter(Boolean));
           const names = new Set(e.participants.map((p) => p.name.toLowerCase()));
+          const phones = new Set(e.participants.map((p) => p.phone).filter(Boolean));
           const fresh: Participant[] = [];
           for (const p of people) {
             const em = p.email.trim().toLowerCase();
             const nm = p.name.trim().toLowerCase();
-            if (!nm || (em && emails.has(em)) || (!em && names.has(nm))) continue;
+            const ph = p.phone;
+            // Same email or same phone means the same person; without either, fall back to the name.
+            if (!nm || (em && emails.has(em)) || (ph && phones.has(ph)) || (!em && !ph && names.has(nm)))
+              continue;
             if (em) emails.add(em);
+            if (ph) phones.add(ph);
             names.add(nm);
             fresh.push({
               id: uid('p'),
@@ -315,6 +324,7 @@ export const useEvents = create<State>()(
               email: p.email.trim(),
               department: p.department?.trim() || undefined,
               wishlist: p.wishlist?.trim() || undefined,
+              ...(ph ? { phone: ph } : {}),
               accessCode: accessCode(),
             });
           }
@@ -336,6 +346,8 @@ export const useEvents = create<State>()(
           if (!e || !cur) return false;
           const email = patch.email?.trim().toLowerCase();
           if (email && e.participants.some((p) => p.id !== pid && p.email.toLowerCase() === email))
+            return false;
+          if (patch.phone && e.participants.some((p) => p.id !== pid && p.phone === patch.phone))
             return false;
           const norm = (d?: string) => d?.trim().toLowerCase() || '';
           // Only a real department change can alter who may draw whom.
@@ -616,6 +628,7 @@ function parseEvents(list: unknown[]): SantaEvent[] {
       .map((p) => ({
         ...p,
         email: typeof p.email === 'string' ? p.email : '',
+        phone: typeof p.phone === 'string' && /^\+[1-9]\d{7,14}$/.test(p.phone) ? p.phone : undefined,
         accessCode: typeof p.accessCode === 'string' && p.accessCode ? p.accessCode : accessCode(),
       }));
     const ids = new Set(participants.map((p) => p.id));
@@ -636,6 +649,8 @@ function parseEvents(list: unknown[]): SantaEvent[] {
       notified: isObj(e.notified) ? e.notified : {},
       audit: (Array.isArray(e.audit) ? e.audit : []).filter((a) => isObj(a) && typeof a.action === 'string'),
       status: e.status === 'archived' || e.status === 'drawn' ? e.status : 'draft',
+      phoneCountryCode:
+        cleanCountryCode(typeof e.phoneCountryCode === 'string' ? e.phoneCountryCode : '') || undefined,
     } as SantaEvent;
   });
 }

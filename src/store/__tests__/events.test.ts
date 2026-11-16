@@ -171,4 +171,44 @@ describe('events store', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(s().events[0]!.name).toBe('Renamed in other tab');
   });
+
+  it('stores phone numbers and treats the same phone as the same person', () => {
+    const id = s().createEvent({ phoneCountryCode: '94' });
+    const r = s().addParticipants(id, [
+      { name: 'Jane', email: '', phone: '+94771234567' },
+      { name: 'Jane (personal)', email: '', phone: '+94771234567' },
+      { name: 'Raj', email: 'raj@x.co', phone: '+919876543210' },
+    ]);
+    expect(r).toEqual({ added: 2, skipped: 1 });
+    const [jane, raj] = ev(id).participants;
+    expect(jane!.phone).toBe('+94771234567');
+    expect(s().updateParticipant(id, raj!.id, { phone: '+94771234567' })).toBe(false);
+    expect(s().updateParticipant(id, raj!.id, { phone: undefined })).toBe(true);
+    expect(ev(id).participants[1]!.phone).toBeUndefined();
+  });
+
+  it('keeps the phone country code for the next round and validates it in backups', async () => {
+    const id = s().createEvent({ name: 'Party 2026', phoneCountryCode: '94' });
+    const next = (await s().nextRound(id))!;
+    expect(ev(next).phoneCountryCode).toBe('94');
+    const {
+      events: [e],
+    } = parseBackup(
+      JSON.stringify({
+        events: [
+          {
+            id: 'e1',
+            name: 'B',
+            phoneCountryCode: '+44',
+            participants: [
+              { id: 'a', name: 'A', phone: '+447700900123' },
+              { id: 'b', name: 'B', phone: 'javascript:alert(1)' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(e!.phoneCountryCode).toBe('44');
+    expect(e!.participants.map((p) => p.phone)).toEqual(['+447700900123', undefined]);
+  });
 });

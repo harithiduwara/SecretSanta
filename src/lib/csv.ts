@@ -1,3 +1,5 @@
+import { normalizePhone } from './phone';
+
 /** Minimal RFC 4180 parser (quoted fields, escaped quotes, CRLF). */
 export function parseCsv(text: string, delimiter?: string): string[][] {
   const d = delimiter ?? detectDelimiter(text);
@@ -60,6 +62,8 @@ export interface ImportedPerson {
   email: string;
   department?: string;
   wishlist?: string;
+  /** E.164, already normalised by the importer. */
+  phone?: string;
 }
 
 const HEADER_ALIASES: Record<keyof ImportedPerson, string[]> = {
@@ -67,6 +71,17 @@ const HEADER_ALIASES: Record<keyof ImportedPerson, string[]> = {
   email: ['email', 'e-mail', 'mail', 'email address'],
   department: ['department', 'dept', 'team', 'group', 'household'],
   wishlist: ['wishlist', 'wish list', 'wishes', 'interests', 'notes'],
+  phone: [
+    'phone',
+    'mobile',
+    'whatsapp',
+    'phone number',
+    'mobile number',
+    'cell',
+    'cell phone',
+    'telephone',
+    'tel',
+  ],
 };
 
 export interface ImportResult {
@@ -74,7 +89,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-export function importParticipants(text: string): ImportResult {
+export function importParticipants(text: string, phoneCountryCode?: string): ImportResult {
   const rows = parseCsv(text.trim());
   const errors: string[] = [];
   if (!rows.length) return { people: [], errors: ['No rows found.'] };
@@ -85,11 +100,12 @@ export function importParticipants(text: string): ImportResult {
     email: idx('email'),
     department: idx('department'),
     wishlist: idx('wishlist'),
+    phone: idx('phone'),
   };
   let body = rows.slice(1);
   if (cols.name < 0) {
-    // No header row: assume name, email, department, wishlist.
-    cols = { name: 0, email: 1, department: 2, wishlist: 3 };
+    // No header row: assume name, email, department, wishlist, phone.
+    cols = { name: 0, email: 1, department: 2, wishlist: 3, phone: 4 };
     body = rows;
   }
   const people: ImportedPerson[] = [];
@@ -100,11 +116,19 @@ export function importParticipants(text: string): ImportResult {
     const line = i + (body === rows ? 1 : 2);
     if (!name) return void errors.push(`Line ${line}: missing name.`);
     if (email && !isEmail(email)) return void errors.push(`Line ${line}: invalid email "${email}".`);
+    const rawPhone = get(cols.phone);
+    let phone: string | undefined;
+    if (rawPhone) {
+      const res = normalizePhone(rawPhone, phoneCountryCode);
+      if (!res.ok) return void errors.push(`Line ${line}: phone "${rawPhone}": ${res.reason}`);
+      phone = res.e164;
+    }
     people.push({
       name,
       email,
       department: get(cols.department) || undefined,
       wishlist: get(cols.wishlist) || undefined,
+      ...(phone ? { phone } : {}),
     });
   });
   return { people, errors };

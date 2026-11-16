@@ -6,6 +6,8 @@ export interface Participant {
   email: string;
   department?: string;
   wishlist?: string;
+  /** Mobile number in E.164 form ("+94771234567"), used for WhatsApp. */
+  phone?: string;
   /** Per-participant access code used to encrypt their reveal link (when PIN protection is on). */
   accessCode: string;
 }
@@ -51,6 +53,8 @@ export interface SantaEvent {
   date: string;
   budget: number;
   currency: string;
+  /** Country calling code (digits, e.g. "94") applied to phone numbers written in local format. */
+  phoneCountryCode?: string;
   status: EventStatus;
   participants: Participant[];
   exclusions: Exclusion[];

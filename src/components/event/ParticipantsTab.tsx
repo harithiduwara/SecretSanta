@@ -2,38 +2,57 @@ import { FileUp, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import type { Participant, SantaEvent } from '../../lib/types';
 import { importParticipants, isEmail } from '../../lib/csv';
+import { cleanCountryCode, normalizePhone } from '../../lib/phone';
 import { useEvents } from '../../store/events';
 import { toast } from '../../store/ui';
 import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Modal, Textarea } from '../ui';
 
-const empty = { name: '', email: '', department: '', wishlist: '' };
+const empty = { name: '', email: '', phone: '', department: '', wishlist: '' };
+type FormValues = typeof empty;
 
+/** `onSubmit` receives the phone already converted to international (E.164) form, or '' when empty. */
 function ParticipantForm({
   initial = empty,
   onSubmit,
   submitLabel,
   compact,
+  countryCode,
 }: {
-  initial?: typeof empty;
-  onSubmit: (v: typeof empty) => boolean | void;
+  initial?: FormValues;
+  onSubmit: (v: FormValues) => boolean | void;
   submitLabel: string;
   compact?: boolean;
+  countryCode?: string;
 }) {
   const [v, setV] = useState(initial);
-  const [err, setErr] = useState<string>();
+  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string }>({});
+  const cc = cleanCountryCode(countryCode);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!v.name.trim()) return setErr('Name is required.');
-    if (v.email.trim() && !isEmail(v.email.trim())) return setErr('Please enter a valid email.');
-    setErr(undefined);
-    if (onSubmit(v) !== false && compact) setV(empty);
+    const next: typeof errors = {};
+    if (!v.name.trim()) next.name = 'Name is required.';
+    if (v.email.trim() && !isEmail(v.email.trim())) next.email = 'Please enter a valid email.';
+    let phone = '';
+    if (v.phone.trim()) {
+      const res = normalizePhone(v.phone, cc);
+      if (res.ok) phone = res.e164;
+      else next.phone = res.reason;
+    }
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    if (onSubmit({ ...v, phone }) !== false && compact) setV(empty);
   };
   return (
     <form
       onSubmit={submit}
-      className={compact ? 'grid gap-3 sm:grid-cols-[1fr_1fr_0.8fr_auto] sm:items-end' : 'space-y-4'}
+      noValidate
+      className={
+        compact
+          ? 'grid gap-3 sm:grid-cols-2 sm:items-start lg:grid-cols-[1fr_1fr_1fr_0.8fr_auto]'
+          : 'space-y-4'
+      }
     >
-      <Field label="Name" error={err}>
+      <Field label="Name" error={errors.name}>
         {(id) => (
           <Input
             id={id}
@@ -44,7 +63,7 @@ function ParticipantForm({
           />
         )}
       </Field>
-      <Field label="Email">
+      <Field label="Email" error={errors.email}>
         {(id) => (
           <Input
             id={id}
@@ -53,6 +72,24 @@ function ParticipantForm({
             maxLength={120}
             onChange={(e) => setV({ ...v, email: e.target.value })}
             placeholder="jane@company.com"
+          />
+        )}
+      </Field>
+      <Field
+        label="WhatsApp number"
+        error={errors.phone}
+        hint={compact ? undefined : cc ? `Local numbers use +${cc}.` : 'Include the country code.'}
+      >
+        {(id) => (
+          <Input
+            id={id}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={v.phone}
+            maxLength={24}
+            onChange={(e) => setV({ ...v, phone: e.target.value })}
+            placeholder={cc ? `+${cc} …` : '+94 77 123 4567'}
           />
         )}
       </Field>
@@ -82,7 +119,7 @@ function ParticipantForm({
       <Button
         type="submit"
         icon={compact ? <UserPlus size={16} /> : undefined}
-        className={compact ? '' : 'w-full'}
+        className={compact ? 'sm:mt-7' : 'w-full'}
       >
         {submitLabel}
       </Button>
@@ -94,7 +131,10 @@ function ImportModal({ open, onClose, event }: { open: boolean; onClose: () => v
   const [text, setText] = useState('');
   const addParticipants = useEvents((s) => s.addParticipants);
   const fileRef = useRef<HTMLInputElement>(null);
-  const preview = useMemo(() => (text.trim() ? importParticipants(text) : null), [text]);
+  const preview = useMemo(
+    () => (text.trim() ? importParticipants(text, event.phoneCountryCode) : null),
+    [text, event.phoneCountryCode],
+  );
 
   const onFile = async (f?: File) => {
     if (!f) return;
@@ -131,8 +171,13 @@ function ImportModal({ open, onClose, event }: { open: boolean; onClose: () => v
     >
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Paste CSV or upload a file exported from your HR system or spreadsheet. Supported columns:{' '}
-        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">name, email, department, wishlist</code>
-        . Comma, semicolon and tab delimiters are detected automatically.
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">
+          name, email, department, wishlist, phone
+        </code>
+        . Comma, semicolon and tab delimiters are detected automatically.{' '}
+        {event.phoneCountryCode
+          ? `Phone numbers without a country code use +${event.phoneCountryCode}.`
+          : 'Phone numbers need a country code (e.g. +94…), or set a default country code in the exchange details.'}
       </p>
       <div className="mt-4 space-y-3">
         <Textarea
@@ -181,6 +226,7 @@ function ImportModal({ open, onClose, event }: { open: boolean; onClose: () => v
                 <tr>
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Phone</th>
                   <th className="px-3 py-2">Department</th>
                 </tr>
               </thead>
@@ -189,6 +235,7 @@ function ImportModal({ open, onClose, event }: { open: boolean; onClose: () => v
                   <tr key={i} className="border-t border-slate-100 dark:border-slate-800">
                     <td className="px-3 py-1.5">{p.name}</td>
                     <td className="px-3 py-1.5">{p.email}</td>
+                    <td className="px-3 py-1.5">{p.phone}</td>
                     <td className="px-3 py-1.5">{p.department}</td>
                   </tr>
                 ))}
@@ -237,9 +284,10 @@ export function ParticipantsTab({ event }: { event: SantaEvent }) {
           <ParticipantForm
             compact
             submitLabel="Add"
+            countryCode={event.phoneCountryCode}
             onSubmit={(v) => {
               if (!confirmIfDrawn()) return false;
-              const { added } = addParticipants(event.id, [v]);
+              const { added } = addParticipants(event.id, [{ ...v, phone: v.phone || undefined }]);
               if (!added) {
                 toast('That person is already in this exchange.', 'error');
                 return false;
@@ -283,7 +331,9 @@ export function ParticipantsTab({ event }: { event: SantaEvent }) {
                     <span className="truncate font-medium">{p.name}</span>
                     {p.department && <Badge>{p.department}</Badge>}
                   </div>
-                  <div className="truncate text-sm text-slate-500">{p.email || 'No email'}</div>
+                  <div className="truncate text-sm text-slate-500">
+                    {[p.email, p.phone].filter(Boolean).join(' · ') || 'No email or phone'}
+                  </div>
                   {p.wishlist && (
                     <div className="mt-0.5 truncate text-xs text-slate-400">🎁 {p.wishlist}</div>
                   )}
@@ -325,9 +375,11 @@ export function ParticipantsTab({ event }: { event: SantaEvent }) {
         {editing && (
           <ParticipantForm
             submitLabel="Save changes"
+            countryCode={event.phoneCountryCode}
             initial={{
               name: editing.name,
               email: editing.email,
+              phone: editing.phone ?? '',
               department: editing.department ?? '',
               wishlist: editing.wishlist ?? '',
             }}
@@ -338,11 +390,12 @@ export function ParticipantsTab({ event }: { event: SantaEvent }) {
               const saved = updateParticipant(event.id, editing.id, {
                 name: v.name.trim(),
                 email: v.email.trim(),
+                phone: v.phone || undefined,
                 department: v.department.trim() || undefined,
                 wishlist: v.wishlist.trim() || undefined,
               });
               if (!saved) {
-                toast('Another participant already uses that email.', 'error');
+                toast('Another participant already uses that email or phone number.', 'error');
                 return false;
               }
               setEditing(null);

@@ -12,8 +12,16 @@ versioning: [SemVer](https://semver.org).
   all") and after 15 minutes without activity. The dashboard shows only the ID of a locked exchange. Backups keep
   protected exchanges encrypted, and a next round inherits the password. Passwords can't be recovered.
 
+- WhatsApp delivery: participants can have a WhatsApp number (entered or imported from a `phone`/`mobile`/`whatsapp`
+  CSV column). Each exchange can set a phone country code so local numbers such as `077 123 4567` work. On the
+  Draw & distribute tab a WhatsApp button opens WhatsApp with the person's number and their invite message
+  pre-filled, and marks the link as sent. The access code is never included in the message.
+- The locked-exchange screen has a close (×) button, and Esc returns to the dashboard.
+
 ### Fixed
 
+- In dark mode, password fields, the date picker and scrollbars were drawn in light colours; native controls now
+  follow the app's theme.
 - Dialogs opened from inside a card were positioned relative to the card instead of the window; all dialogs now
   render at the top level of the page.
 

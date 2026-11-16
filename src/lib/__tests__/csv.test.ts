@@ -44,4 +44,19 @@ describe('csv', () => {
     expect(isEmail('a@b.co')).toBe(true);
     expect(isEmail('a@b')).toBe(false);
   });
+
+  it('imports phone numbers, applying the country code to local numbers', () => {
+    const r = importParticipants(
+      'name,email,mobile\nJane,jane@a.co,077 123 4567\nRaj,,+91 98765 43210\nBob,,12\nNo Phone,np@a.co,',
+      '94',
+    );
+    expect(r.people.map((p) => p.phone)).toEqual(['+94771234567', '+919876543210', undefined]);
+    expect(r.errors).toEqual([expect.stringMatching(/^Line 4: phone "12"/)]);
+  });
+
+  it('rejects local phone numbers when no country code is set', () => {
+    const r = importParticipants('name,whatsapp\nJane,077 123 4567');
+    expect(r.people).toEqual([]);
+    expect(r.errors[0]).toMatch(/country code/);
+  });
 });

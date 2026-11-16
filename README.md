@@ -12,15 +12,15 @@ with **no backend and no data collection**.
 
 ## Features
 
-| Area             | Capabilities                                                                                                                                                                            |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Exchanges**    | Multiple concurrent exchanges · date, budget & currency · message to participants · archive/restore · "Start next round" that remembers past pairings                                   |
-| **Participants** | Inline add/edit/remove · bulk CSV/TSV import with header detection & preview · de-duplication by email · departments/households · wishlists                                             |
-| **Rules engine** | One-way & mutual exclusions · avoid same department · avoid previous years' pairs · no reciprocal pairs · _random_ or _single gift-chain_ mode · live feasibility diagnostics           |
-| **Draw**         | Web Crypto CSPRNG · polynomial-time randomized bipartite matching (always finds a valid draw if one exists) · independent post-draw validation                                          |
-| **Distribution** | Per-person encrypted reveal links · optional per-person access codes (PBKDF2 + AES-256-GCM) · one-click email drafts · CSV export of links · delivery tracking · organizer "blind mode" |
-| **Governance**   | Per-exchange audit log · JSON backup/restore · formula-injection-safe CSV export · data never leaves the browser                                                                        |
-| **UX**           | Responsive, accessible (keyboard, ARIA, reduced-motion) · light/dark/system themes · animated gift reveal                                                                               |
+| Area             | Capabilities                                                                                                                                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Exchanges**    | Multiple concurrent exchanges · date, budget & currency · message to participants · archive/restore · "Start next round" that remembers past pairings                                                                 |
+| **Participants** | Inline add/edit/remove · bulk CSV/TSV import with header detection & preview · de-duplication by email · departments/households · wishlists                                                                           |
+| **Rules engine** | One-way & mutual exclusions · avoid same department · avoid previous years' pairs · no reciprocal pairs · _random_ or _single gift-chain_ mode · live feasibility diagnostics                                         |
+| **Draw**         | Web Crypto CSPRNG · polynomial-time randomized bipartite matching (always finds a valid draw if one exists) · independent post-draw validation                                                                        |
+| **Distribution** | Per-person encrypted reveal links · optional per-person access codes (PBKDF2 + AES-256-GCM) · one-click email drafts · one-click WhatsApp messages · CSV export of links · delivery tracking · organizer "blind mode" |
+| **Governance**   | Per-exchange audit log · JSON backup/restore · formula-injection-safe CSV export · data never leaves the browser                                                                                                      |
+| **UX**           | Responsive, accessible (keyboard, ARIA, reduced-motion) · light/dark/system themes · animated gift reveal                                                                                                             |
 
 ## Quick start
 
