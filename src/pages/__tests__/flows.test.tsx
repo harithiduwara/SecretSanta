@@ -131,3 +131,55 @@ describe('link protection', () => {
     confirm.mockRestore();
   });
 });
+
+describe('password protection flow', () => {
+  beforeEach(() => {
+    useEvents.getState().clearAll();
+    localStorage.clear();
+  });
+
+  it('protects, locks, hides details on the dashboard, and unlocks with ID + password', async () => {
+    const user = userEvent.setup();
+    const id = useEvents.getState().createEvent({ name: 'Leadership exchange' });
+    renderAt(`/events/${id}`);
+
+    await user.click(await screen.findByRole('button', { name: /protect with a password/i }));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Password'), 'sleigh-bells-ring');
+    await user.type(within(dialog).getByLabelText('Confirm password'), 'sleigh-bells-ring');
+    await user.click(within(dialog).getByRole('button', { name: /turn on protection/i }));
+    expect(await within(dialog).findByText(/confirm you have stored/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: /turn on protection/i }));
+    expect(await screen.findByText('Password protected', {}, { timeout: 5000 })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Lock now' }));
+    // Dashboard: the locked exchange shows only its ID.
+    expect(await screen.findByText('Locked exchange')).toBeInTheDocument();
+    expect(screen.getByText(id)).toBeInTheDocument();
+    expect(screen.queryByText('Leadership exchange')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Locked exchange'));
+    expect(await screen.findByText('This exchange is locked')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Password'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    expect(
+      await screen.findByText('That password is not correct.', {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Password'));
+    await user.type(screen.getByLabelText('Password'), 'sleigh-bells-ring');
+    await user.click(screen.getByRole('button', { name: 'Unlock' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Leadership exchange' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  }, 20000);
+
+  it('keeps an exchange unlocked when another tab saves', async () => {
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'Tab test' });
+    await store.protectEvent(id, 'tab-password-1');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'secretsanta:v1' }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(useEvents.getState().events.find((e) => e.id === id)?.name).toBe('Tab test');
+  });
+});

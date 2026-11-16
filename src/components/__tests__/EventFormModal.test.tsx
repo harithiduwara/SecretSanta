@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { EventFormModal } from '../EventFormModal';
@@ -47,7 +47,7 @@ describe('EventFormModal date rules', () => {
       setDate(value);
       await save();
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ date: value }));
-      document.body.innerHTML = '';
+      cleanup();
     }
   });
 

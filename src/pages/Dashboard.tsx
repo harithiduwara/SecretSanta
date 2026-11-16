@@ -1,10 +1,11 @@
-import { CalendarDays, CheckCircle2, Gift, Plus, Search, Sparkles, Users } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Gift, Lock, Plus, Search, Sparkles, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { clsx } from 'clsx';
 import { useEvents } from '../store/events';
 import type { EventStatus, SantaEvent } from '../lib/types';
-import { daysUntil, formatDate, formatMoney, nextOccurrence } from '../lib/format';
+import type { Vault } from '../lib/vault';
+import { daysUntil, formatDate, formatMoney, nextOccurrence, relativeTime } from '../lib/format';
 import { DEMO_PEOPLE } from '../lib/demo';
 import { Badge, Button, Card, EmptyState, Input, Stat } from '../components/ui';
 import { EventFormModal } from '../components/EventFormModal';
@@ -70,8 +71,32 @@ function EventCard({ e }: { e: SantaEvent }) {
   );
 }
 
+/** A locked exchange reveals nothing but its ID until the password is entered. */
+function LockedCard({ v }: { v: Vault }) {
+  return (
+    <Link to={`/events/${v.id}`} className="group block animate-fade-up">
+      <Card className="h-full border-dashed p-5 transition group-hover:-translate-y-0.5 group-hover:border-brand-300 group-hover:shadow-lg dark:group-hover:border-brand-800">
+        <div className="flex items-start justify-between gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <Lock size={20} />
+          </div>
+          <Badge>Locked</Badge>
+        </div>
+        <h3 className="mt-4 font-semibold tracking-tight">Locked exchange</h3>
+        <p className="mt-1 break-all font-mono text-xs text-slate-500">{v.id}</p>
+        <p className="mt-5 text-sm text-slate-500">
+          Saved {relativeTime(v.updatedAt)} · enter the password to open
+        </p>
+      </Card>
+    </Link>
+  );
+}
+
 export default function Dashboard() {
   const events = useEvents((s) => s.events);
+  const vaults = useEvents((s) => s.vaults);
+  const keys = useEvents((s) => s.keys);
+  const locked = useMemo(() => Object.values(vaults).filter((v) => !keys[v.id]), [vaults, keys]);
   const createEvent = useEvents((s) => s.createEvent);
   const addParticipants = useEvents((s) => s.addParticipants);
   const navigate = useNavigate();
@@ -88,6 +113,9 @@ export default function Dashboard() {
       ),
     [events, filter, q],
   );
+  // Locked exchanges only show in the default view, and only their ID is searchable.
+  const visibleLocked =
+    filter === 'all' ? locked.filter((v) => v.id.toLowerCase().includes(q.trim().toLowerCase())) : [];
 
   const active = events.filter((e) => e.status !== 'archived');
   const people = new Set(active.flatMap((e) => e.participants.map((p) => p.email || p.name))).size;
@@ -128,7 +156,12 @@ export default function Dashboard() {
       </section>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Active exchanges" value={active.length} icon={<Gift size={18} />} />
+        <Stat
+          label="Active exchanges"
+          value={active.length + locked.length}
+          icon={<Gift size={18} />}
+          hint={locked.length ? `${locked.length} locked, not counted below` : undefined}
+        />
         <Stat label="Unique participants" value={people} icon={<Users size={18} />} />
         <Stat
           label="Draws completed"
@@ -142,7 +175,7 @@ export default function Dashboard() {
         />
       </section>
 
-      {events.length === 0 ? (
+      {events.length === 0 && locked.length === 0 ? (
         <Card>
           <EmptyState
             icon={<Gift size={26} />}
@@ -185,17 +218,20 @@ export default function Dashboard() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input
                 aria-label="Search exchanges"
-                placeholder="Search exchanges…"
+                placeholder="Search by name or ID…"
                 className="pl-9"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
             </div>
           </div>
-          {visible.length ? (
+          {visible.length || visibleLocked.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((e) => (
                 <EventCard key={e.id} e={e} />
+              ))}
+              {visibleLocked.map((v) => (
+                <LockedCard key={v.id} v={v} />
               ))}
             </div>
           ) : (

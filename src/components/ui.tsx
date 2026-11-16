@@ -11,6 +11,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
 type Size = 'sm' | 'md' | 'lg';
@@ -229,7 +230,9 @@ export function Modal({
     };
   }, [open]);
   if (!open) return null;
-  return (
+  // Portal to <body>: an ancestor with a filter/backdrop-filter (e.g. a .card) would otherwise become the
+  // containing block for `position: fixed`, trapping the dialog inside that ancestor.
+  return createPortal(
     <div className="fixed inset-0 z-40 flex items-end justify-center p-4 sm:items-center">
       <div
         className="absolute inset-0 animate-fade-up bg-slate-950/50 backdrop-blur-sm"
@@ -259,7 +262,8 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

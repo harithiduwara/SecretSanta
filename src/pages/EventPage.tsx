@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   Gift,
+  Lock,
   History,
   ListChecks,
   Pencil,
@@ -19,7 +20,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { clsx } from 'clsx';
-import { useEvent, useEvents } from '../store/events';
+import { exportSnapshot, useEvent, useEvents } from '../store/events';
 import type { SantaEvent } from '../lib/types';
 import { daysUntil, formatDate, formatMoney } from '../lib/format';
 import { download } from '../lib/download';
@@ -31,6 +32,7 @@ import { RulesTab } from '../components/event/RulesTab';
 import { DrawTab } from '../components/event/DrawTab';
 import { ActivityTab } from '../components/event/ActivityTab';
 import { StatusBadge } from './Dashboard';
+import { ProtectionCard, UnlockScreen } from '../components/event/Protection';
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: ListChecks },
@@ -152,6 +154,7 @@ function Overview({ event, go }: { event: SantaEvent; go: (t: TabId) => void }) 
             </div>
           </div>
         </Card>
+        <ProtectionCard id={event.id} />
         {event.description && (
           <Card className="p-5">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -168,12 +171,16 @@ function Overview({ event, go }: { event: SantaEvent; go: (t: TabId) => void }) 
 export default function EventPage() {
   const { id } = useParams();
   const event = useEvent(id);
-  const { updateEvent, deleteEvent, archiveEvent, nextRound } = useEvents();
+  const { updateEvent, deleteEvent, archiveEvent, nextRound, lockEvent } = useEvents();
+  const isLockedAway = useEvents((s) => !!id && !!s.vaults[id] && !s.keys[id]);
+  const isProtectedNow = useEvents((s) => !!id && !!s.keys[id]);
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState(false);
   const tab = (tabs.find((t) => t.id === params.get('tab'))?.id ?? 'overview') as TabId;
   const go = (t: TabId) => setParams({ tab: t }, { replace: true });
+
+  if (!event && isLockedAway && id) return <UnlockScreen id={id} />;
 
   if (!event)
     return (
@@ -201,6 +208,11 @@ export default function EventPage() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{event.name}</h1>
               <StatusBadge status={event.status} />
+              {isProtectedNow && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-pine-600">
+                  <Lock size={13} /> Protected
+                </span>
+              )}
             </div>
             <p className="mt-1 text-sm text-slate-500">
               {event.participants.length} participants · {formatMoney(event.budget, event.currency)} ·{' '}
@@ -208,6 +220,19 @@ export default function EventPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {isProtectedNow && (
+              <Button
+                size="sm"
+                icon={<Lock size={14} />}
+                onClick={async () => {
+                  await lockEvent(event.id);
+                  toast('Exchange locked', 'info');
+                  navigate('/');
+                }}
+              >
+                Lock
+              </Button>
+            )}
             {event.status !== 'archived' && (
               <Button
                 variant="secondary"
@@ -222,10 +247,14 @@ export default function EventPage() {
               variant="secondary"
               size="sm"
               icon={<Repeat size={14} />}
-              onClick={() => {
-                const nid = nextRound(event.id);
+              onClick={async () => {
+                const nid = await nextRound(event.id);
                 if (nid) {
-                  toast('Next round created — previous pairings will be avoided');
+                  toast(
+                    isProtectedNow
+                      ? 'Next round created with the same password — previous pairings will be avoided'
+                      : 'Next round created — previous pairings will be avoided',
+                  );
                   navigate(`/events/${nid}`);
                 }
               }}
@@ -236,12 +265,11 @@ export default function EventPage() {
               variant="secondary"
               size="sm"
               icon={<Download size={14} />}
-              onClick={() =>
-                download(
-                  `${event.name.replace(/[^\w-]+/g, '_')}.json`,
-                  JSON.stringify({ events: [event] }, null, 2),
-                )
-              }
+              onClick={async () => {
+                // Protected exchanges are exported encrypted; they need the password to import and open.
+                const snapshot = await exportSnapshot([event.id]);
+                download(`${event.name.replace(/[^\w-]+/g, '_')}.json`, JSON.stringify(snapshot, null, 2));
+              }}
             >
               Export
             </Button>

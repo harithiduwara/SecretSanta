@@ -5,6 +5,18 @@ versioning: [SemVer](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+
+- Optional password per exchange. A protected exchange is stored encrypted (AES-256-GCM, key from PBKDF2-SHA-256
+  with 600k iterations) and opens only with its ID and password. It locks on reload, on demand ("Lock", "Lock
+  all") and after 15 minutes without activity. The dashboard shows only the ID of a locked exchange. Backups keep
+  protected exchanges encrypted, and a next round inherits the password. Passwords can't be recovered.
+
+### Fixed
+
+- Dialogs opened from inside a card were positioned relative to the card instead of the window; all dialogs now
+  render at the top level of the page.
+
 ## [1.0.1] - 2026-11-16
 
 ### Fixed

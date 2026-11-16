@@ -63,19 +63,21 @@ describe('events store', () => {
     expect(ev(id).audit[0]!.action).toBe('Draw failed');
   });
 
-  it('starts a next round carrying history', () => {
+  it('starts a next round carrying history', async () => {
     const id = s().createEvent({ name: 'Party 2025' });
     s().addParticipants(
       id,
       ['A', 'B', 'C', 'D'].map((name) => ({ name, email: '' })),
     );
     s().runDraw(id);
-    const next = s().nextRound(id)!;
+    const next = (await s().nextRound(id))!;
     expect(ev(next).name).toBe('Party 2026'); // bumps the year in the name, regardless of today's date
-    expect(ev(s().nextRound(s().createEvent({ name: 'Team gifts' })!)!).name).toBe('Team gifts (next round)');
+    expect(ev((await s().nextRound(s().createEvent({ name: 'Team gifts' })))!).name).toBe(
+      'Team gifts (next round)',
+    );
     expect(ev(next).history).toHaveLength(1);
     expect(ev(next).participants[0]!.accessCode).not.toBe(ev(id).participants[0]!.accessCode);
-    expect(s().nextRound('missing')).toBeNull();
+    expect(await s().nextRound('missing')).toBeNull();
   });
 
   it('archives, restores, updates and deletes', () => {
@@ -94,8 +96,8 @@ describe('events store', () => {
     const id = s().createEvent({ name: 'Backup me' });
     const json = JSON.stringify({ events: s().events });
     s().clearAll();
-    expect(s().importEvents(parseBackup(json))).toBe(1);
-    expect(s().importEvents(parseBackup(json))).toBe(0);
+    expect(s().importEvents(parseBackup(json).events)).toBe(1);
+    expect(s().importEvents(parseBackup(json).events)).toBe(0);
     expect(ev(id).name).toBe('Backup me');
     expect(() => parseBackup('{"foo":1}')).toThrow('does not contain');
     expect(() => parseBackup('[{"id":1}]')).toThrow('#1 is invalid');
@@ -131,7 +133,9 @@ describe('events store', () => {
   });
 
   it('survives malformed backups without crashing', () => {
-    const [e] = parseBackup(
+    const {
+      events: [e],
+    } = parseBackup(
       JSON.stringify({
         events: [
           {

@@ -1,8 +1,11 @@
-import { Gift, Monitor, Moon, Settings, Sun } from 'lucide-react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Gift, Lock, Monitor, Moon, Settings, Sun } from 'lucide-react';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router';
 import { clsx } from 'clsx';
 import { useUi, type Theme } from '../store/ui';
 import { useApplyTheme } from '../hooks/useApplyTheme';
+import { useAutoLock } from '../hooks/useAutoLock';
+import { useEvents } from '../store/events';
+import { toast } from '../store/ui';
 import { Toaster } from './Toaster';
 
 const themes: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -35,8 +38,29 @@ function ThemeSwitcher() {
   );
 }
 
+function LockAllButton() {
+  const unlocked = useEvents((s) => Object.keys(s.keys).length);
+  const lockAll = useEvents((s) => s.lockAll);
+  const navigate = useNavigate();
+  if (!unlocked) return null;
+  return (
+    <button
+      onClick={async () => {
+        await lockAll();
+        toast('All protected exchanges locked', 'info');
+        navigate('/');
+      }}
+      className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-pine-700 transition hover:bg-slate-100 dark:text-pine-400 dark:hover:bg-slate-800"
+    >
+      <Lock size={15} />
+      <span className="hidden sm:inline">Lock all</span>
+    </button>
+  );
+}
+
 export function Layout() {
   useApplyTheme();
+  useAutoLock();
   return (
     <div className="bg-festive min-h-screen">
       <a
@@ -59,6 +83,7 @@ export function Layout() {
             </span>
           </Link>
           <nav className="flex items-center gap-2">
+            <LockAllButton />
             <NavLink
               to="/settings"
               className={({ isActive }) =>

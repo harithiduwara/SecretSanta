@@ -15,16 +15,17 @@ Coverage gate: ≥ 85 % lines/functions/statements and ≥ 80 % branches for `sr
 
 ## Requirements traceability
 
-| Requirement         | Tests                                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------- |
-| FR-01, FR-12, FR-14 | `events.test.ts` (create/update/archive/delete, next round, backups); `flows.test.tsx` (create from dashboard) |
-| FR-02, FR-03        | `events.test.ts` (dedupe), `csv.test.ts` (parsing, aliases, errors), `flows.test.tsx` (add participants)       |
-| FR-04, FR-05, FR-07 | `draw.test.ts` (exclusions, departments, history, reciprocal, infeasible, Hall violation, uniformity)          |
-| FR-06               | `draw.test.ts` (single loop), `validateAssignments` loop check                                                 |
-| FR-08               | `events.test.ts` (draw invalidated on roster change; PIN toggle does not invalidate)                           |
-| FR-09, NFR-02       | `crypto.test.ts` (round-trip, wrong code, tampering, malformed); `flows.test.tsx` (reveal & unlock)            |
-| FR-13               | `events.test.ts` (audit entries, failed draw logged)                                                           |
-| NFR-03              | `draw.test.ts` validates every generated draw with the independent validator                                   |
+| Requirement         | Tests                                                                                                                                                                                                                                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-01, FR-12, FR-14 | `events.test.ts` (create/update/archive/delete, next round, backups); `flows.test.tsx` (create from dashboard)                                                                                                                                                                                                       |
+| FR-02, FR-03        | `events.test.ts` (dedupe), `csv.test.ts` (parsing, aliases, errors), `flows.test.tsx` (add participants)                                                                                                                                                                                                             |
+| FR-04, FR-05, FR-07 | `draw.test.ts` (exclusions, departments, history, reciprocal, infeasible, Hall violation, uniformity)                                                                                                                                                                                                                |
+| FR-06               | `draw.test.ts` (single loop), `validateAssignments` loop check                                                                                                                                                                                                                                                       |
+| FR-08               | `events.test.ts` (draw invalidated on roster change; PIN toggle does not invalidate)                                                                                                                                                                                                                                 |
+| FR-09, NFR-02       | `crypto.test.ts` (round-trip, wrong code, tampering, malformed); `flows.test.tsx` (reveal & unlock)                                                                                                                                                                                                                  |
+| FR-13               | `events.test.ts` (audit entries, failed draw logged)                                                                                                                                                                                                                                                                 |
+| FR-16               | `vault.test.ts` (round-trip, wrong password, tampering, nonce/salt freshness); `protection.test.ts` (never stored readable, lock/unlock, reload locks, change/remove password, encrypted backups, next round, never stored in neither form); `load.test.ts` (startup restore); `flows.test.tsx` (UI flow, cross-tab) |
+| NFR-03              | `draw.test.ts` validates every generated draw with the independent validator                                                                                                                                                                                                                                         |
 
 ## Release checklist (manual)
 
