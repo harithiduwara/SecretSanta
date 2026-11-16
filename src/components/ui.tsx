@@ -190,13 +190,36 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Keep the latest onClose without re-running the open/close effect: callers often pass an inline arrow,
+  // and re-running the effect on every parent render would steal focus back to the first field.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     ref.current
       ?.querySelector<HTMLElement>('input,textarea,select,button:not([aria-label="Close"])')
       ?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onCloseRef.current();
+      if (e.key !== 'Tab' || !ref.current) return;
+      // Focus trap: keep Tab / Shift+Tab inside the dialog.
+      const items = ref.current.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])',
+      );
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -204,7 +227,7 @@ export function Modal({
       document.body.style.overflow = '';
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center p-4 sm:items-center">

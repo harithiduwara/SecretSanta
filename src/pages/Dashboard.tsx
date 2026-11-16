@@ -11,7 +11,7 @@ import { EventFormModal } from '../components/EventFormModal';
 import { toast } from '../store/ui';
 
 const filters: { value: EventStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'Active' },
   { value: 'draft', label: 'Drafts' },
   { value: 'drawn', label: 'Drawn' },
   { value: 'archived', label: 'Archived' },

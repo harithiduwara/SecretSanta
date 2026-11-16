@@ -128,9 +128,13 @@ describe('draw', () => {
     });
     expect(blocked.ok).toBe(false);
     if (!blocked.ok) expect(blocked.reason).toContain('Person 0 has nobody');
+    // The reciprocal rule only applies to 3+ people: a 2-person exchange must still be drawable.
     expect(
-      diagnose({ participants: people(2), exclusions: [], rules: rules({ avoidReciprocal: true }) })[0],
-    ).toMatch(/reciprocal/);
+      diagnose({ participants: people(2), exclusions: [], rules: rules({ avoidReciprocal: true }) }),
+    ).toEqual([]);
+    expect(
+      draw({ participants: people(2), exclusions: [], rules: rules({ avoidReciprocal: true }) }).ok,
+    ).toBe(true);
   });
 
   it('detects impossible matchings that pass the simple pre-check (Hall violation)', () => {

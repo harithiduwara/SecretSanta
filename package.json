@@ -1,7 +1,7 @@
 {
   "name": "secretsanta",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Enterprise-grade Secret Santa organizer: constraint-aware draws, private reveal links, multi-event management.",
   "type": "module",
   "license": "MIT",

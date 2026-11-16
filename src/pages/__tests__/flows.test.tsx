@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '../../App';
 import { useEvents } from '../../store/events';
 import { sealPayload } from '../../lib/crypto';
@@ -90,5 +90,44 @@ describe('reveal page', () => {
   it('shows an error for malformed links', async () => {
     renderAt('/reveal/nonsense');
     expect(await screen.findByText(/malformed/)).toBeInTheDocument();
+  });
+});
+
+describe('link protection', () => {
+  beforeEach(() => useEvents.getState().clearAll());
+
+  it('never exposes old unprotected links after access codes are enabled', async () => {
+    const user = userEvent.setup();
+    const { act } = await import('@testing-library/react');
+    const store = useEvents.getState();
+    const id = store.createEvent({ name: 'Secure' });
+    store.addParticipants(
+      id,
+      ['A', 'B', 'C'].map((name) => ({ name, email: '' })),
+    );
+    store.runDraw(id);
+    renderAt(`/events/${id}?tab=draw`);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await user.click(await screen.findByRole('button', { name: /show pairings/i }));
+    await waitFor(() =>
+      expect(screen.getAllByRole('link', { name: /preview/i })[0]).toHaveAttribute(
+        'href',
+        expect.stringContaining('#/reveal/k.'),
+      ),
+    );
+    act(() => useEvents.getState().setRules(id, { pinProtectedLinks: true }));
+    // Immediately after the change no stale (unprotected) link may be reachable.
+    for (const a of screen.queryAllByRole('link', { name: /preview/i }))
+      expect(a.getAttribute('href')).not.toContain('#/reveal/k.');
+    await waitFor(
+      () =>
+        expect(screen.getAllByRole('link', { name: /preview/i })[0]).toHaveAttribute(
+          'href',
+          expect.stringContaining('#/reveal/p.'),
+        ),
+      { timeout: 5000 },
+    );
+    expect(screen.getByRole('button', { name: /export links/i })).toBeEnabled();
+    confirm.mockRestore();
   });
 });
