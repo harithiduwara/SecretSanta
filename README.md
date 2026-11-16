@@ -25,7 +25,7 @@ with **no backend and no data collection**.
 ## Quick start
 
 ```bash
-nvm use            # Node 20+
+nvm use            # Node 22.12+
 npm ci
 npm run dev        # http://localhost:5173
 ```
