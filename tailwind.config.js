@@ -1,0 +1,37 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+      colors: {
+        brand: {
+          50: '#fff1f2',
+          100: '#ffe4e6',
+          200: '#fecdd3',
+          300: '#fda4af',
+          400: '#fb7185',
+          500: '#f43f5e',
+          600: '#e11d48',
+          700: '#be123c',
+          800: '#9f1239',
+          900: '#881337',
+        },
+        pine: { 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857' },
+      },
+      keyframes: {
+        'fade-up': {
+          '0%': { opacity: 0, transform: 'translateY(8px)' },
+          '100%': { opacity: 1, transform: 'none' },
+        },
+        flip: {
+          '0%': { transform: 'rotateY(90deg)', opacity: 0 },
+          '100%': { transform: 'rotateY(0)', opacity: 1 },
+        },
+      },
+      animation: { 'fade-up': 'fade-up .35s ease-out both', flip: 'flip .6s ease-out both' },
+    },
+  },
+  plugins: [],
+};

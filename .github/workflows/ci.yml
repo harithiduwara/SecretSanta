@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'claude/**']
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit & component tests (with coverage gate)
+        run: npm run coverage
+      - name: Build
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Dependency audit (production deps)
+        run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 7
