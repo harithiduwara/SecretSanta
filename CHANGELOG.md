@@ -24,6 +24,9 @@ versioning: [SemVer](https://semver.org).
 
 ### Added
 
+- Exchange dates can no longer be set in the past: the date picker starts at today and the form rejects earlier
+  dates. An exchange whose date has already passed keeps it when other details are edited.
+- The demo team's exchange date rolls over to next year once December 19 has passed.
 - Property-based test comparing the draw engine against brute force on random rosters and rules.
 - Performance tests for 1,000 and 5,000-person rosters; regression tests for every fix above.
 
