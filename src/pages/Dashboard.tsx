@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router';
 import { clsx } from 'clsx';
 import { useEvents } from '../store/events';
 import type { EventStatus, SantaEvent } from '../lib/types';
-import { daysUntil, formatDate, formatMoney } from '../lib/format';
+import { daysUntil, formatDate, formatMoney, nextOccurrence } from '../lib/format';
 import { DEMO_PEOPLE } from '../lib/demo';
 import { Badge, Button, Card, EmptyState, Input, Stat } from '../components/ui';
 import { EventFormModal } from '../components/EventFormModal';
@@ -97,9 +97,10 @@ export default function Dashboard() {
     .sort((a, b) => a - b)[0];
 
   const loadDemo = () => {
+    const date = nextOccurrence(12, 19);
     const id = createEvent({
-      name: `Team Holiday Exchange ${new Date().getFullYear()}`,
-      date: `${new Date().getFullYear()}-12-19`,
+      name: `Team Holiday Exchange ${date.slice(0, 4)}`,
+      date,
       budget: 30,
       description: 'Gifts will be exchanged at the end-of-year party. Keep it fun and thoughtful! 🎄',
     });
